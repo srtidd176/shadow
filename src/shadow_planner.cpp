@@ -24,7 +24,7 @@
 
 //Max values for ATLAS relation to each axis
 #define ATLAS_RARM_MAX_X 1.1
-#define ATLAS_RARM_MAX_Y 0.0
+#define ATLAS_RARM_MAX_Y -0.2
 #define ATLAS_RARM_MAX_Z 0.9
 
 #define ATLAS_LARM_MAX_X 1.1
@@ -147,9 +147,9 @@ void transformToPose(const tf::StampedTransform& tf, geometry_msgs::PoseStamped&
 
     
     result.header.frame_id = "pelvis";
-    result.pose.position.x = tf.getOrigin().getX() * xscale;
-    result.pose.position.y = tf.getOrigin().getY() * yscale;
-    result.pose.position.z = tf.getOrigin().getZ() * zscale;
+    result.pose.position.x = tf.getOrigin().getX(); //* xscale;
+    result.pose.position.y = tf.getOrigin().getY(); //* yscale;
+    result.pose.position.z = tf.getOrigin().getZ(); //* zscale;
     result.pose.orientation.x = 0.0; // tf.getRotation().getX();
     result.pose.orientation.y = 0.0; //tf.getRotation().getY();
     result.pose.orientation.z = 0.0; //tf.getRotation().getZ();
@@ -157,6 +157,7 @@ void transformToPose(const tf::StampedTransform& tf, geometry_msgs::PoseStamped&
     if (tf.child_frame_id_ != "torso"){
       result.pose.position.y *= -1;
     }
+    ROS_INFO("%f : %f : %f", result.pose.position.x,result.pose.position.y,result.pose.position.z);
     capPosition(xmin,xmax,result,"x");
     capPosition(ymin,ymax,result,"y");
     capPosition(zmin,zmax,result,"z");
