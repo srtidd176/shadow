@@ -114,7 +114,7 @@ void transformToPose(const tf::StampedTransform& tf, geometry_msgs::PoseStamped&
     double ymin;
     double zmin;
   
-    if(tf.child_frame_id_ == "left_palm"){
+    if(tf.child_frame_id_ == "openni/right_palm"){
       xscale = rarm_xscale;
       yscale = rarm_yscale;
       zscale = rarm_zscale;
@@ -130,7 +130,7 @@ void transformToPose(const tf::StampedTransform& tf, geometry_msgs::PoseStamped&
 
     }
 
-    else if(tf.child_frame_id_ == "right_palm"){
+    else if(tf.child_frame_id_ == "openni/left_palm"){
       xscale = larm_xscale;
       yscale = larm_yscale;
       zscale = larm_zscale;
@@ -147,16 +147,14 @@ void transformToPose(const tf::StampedTransform& tf, geometry_msgs::PoseStamped&
 
     
     result.header.frame_id = "pelvis";
-    result.pose.position.x = tf.getOrigin().getX(); //* xscale;
-    result.pose.position.y = tf.getOrigin().getY(); //* yscale;
-    result.pose.position.z = tf.getOrigin().getZ(); //* zscale;
-    result.pose.orientation.x = 0.0; // tf.getRotation().getX();
+    result.pose.position.x = tf.getOrigin().getX() * xscale;
+    result.pose.position.y = tf.getOrigin().getY() * yscale;
+    result.pose.position.z = tf.getOrigin().getZ() * zscale;
+    result.pose.orientation.x = 0.0; //tf.getRotation().getX(); TO-DO: TEST INCOMING QUATERNION DATA
     result.pose.orientation.y = 0.0; //tf.getRotation().getY();
     result.pose.orientation.z = 0.0; //tf.getRotation().getZ();
     result.pose.orientation.w = 1.0; //tf.getRotation().getW();
-    if (tf.child_frame_id_ != "torso"){
-      result.pose.position.y *= -1;
-    }
+  
     ROS_INFO("%f : %f : %f", result.pose.position.x,result.pose.position.y,result.pose.position.z);
     capPosition(xmin,xmax,result,"x");
     capPosition(ymin,ymax,result,"y");
@@ -198,7 +196,7 @@ bool isNewPos(double new_position, double old_position, double tolerance){
 * @param past_pose                Previous pose msg
 * @param tolerance                Minimum difference between current and past pose to be considered worth planning a trajectory
 *
-* @return  bool                   returns a true if at least one of the positions is different from the previous 
+* @return  bool                   returns true if at least one of the positions is different from the previous 
 */
 bool isNewGoal(const geometry_msgs::PoseStamped& pose, const geometry_msgs::PoseStamped& past_pose, double tolerance){
   double x_pose = pose.pose.position.x;
@@ -299,7 +297,7 @@ int main(int argc, char** argv)
 
   atlas_taskspace.setPlanningTime(2.0);
 
-//TODO add T-Pose calibration for human
+//T-Pose calibration for human
   ROS_INFO("Callibrating: HOLD T-POSE UNTIL NOTIFIED");
   int reading = 0;
   double rx_sum = 0;
@@ -313,13 +311,13 @@ int main(int argc, char** argv)
   double tz_sum = 0;
   
   while(reading < MAX_TPOSE_READS){
-    right_arm.waitForTransform("/human_pelvis", "/left_palm", ros::Time(0.0), ros::Duration(3.0));
-    right_arm.lookupTransform( "/human_pelvis","/left_palm",ros::Time(0.0), right_palm);
+    right_arm.waitForTransform("/openni/pelvis", "/openni/right_palm", ros::Time(0.0), ros::Duration(3.0));
+    right_arm.lookupTransform( "/openni/pelvis","/openni/right_palm",ros::Time(0.0), right_palm);
     addToSum(right_palm,rx_sum,ry_sum,rz_sum,reading);
     updateScale(rx_sum,ry_sum,rz_sum,reading, "rarm");
 
-    left_arm.waitForTransform("/human_pelvis", "/right_palm", ros::Time(0.0), ros::Duration(3.0));
-    left_arm.lookupTransform( "/human_pelvis","/right_palm",ros::Time(0.0), left_palm);
+    left_arm.waitForTransform("/openni/pelvis", "/openni/left_palm", ros::Time(0.0), ros::Duration(3.0));
+    left_arm.lookupTransform( "/openni/pelvis","/openni/left_palm",ros::Time(0.0), left_palm);
     addToSum(left_palm,lx_sum,ly_sum,lz_sum,reading);
     updateScale(lx_sum,ly_sum,lz_sum,reading, "larm");
 
@@ -331,15 +329,15 @@ int main(int argc, char** argv)
 
  while(ros::ok()){ 
   try{
-   /* left_arm.lookupTransform( "/human_pelvis","/right_palm", ros::Time(0.0),left_palm);
-    right_arm.waitForTransform("/human_pelvis", "/left_palm", ros::Time(0.0), ros::Duration(3.0));
+   /* left_arm.lookupTransform( "/openni/pelvis","/openni/right_palm", ros::Time(0.0),left_palm);
+    right_arm.waitForTransform("/openni/pelvis", "/openni/left_palm", ros::Time(0.0), ros::Duration(3.0));
     transformToPose(left_palm, left_arm_pose);
     */
 
-    right_arm.waitForTransform("/human_pelvis", "/left_palm", ros::Time(0.0), ros::Duration(3.0));
-    right_arm.lookupTransform( "/human_pelvis","/left_palm",ros::Time(0.0), right_palm);
+    right_arm.waitForTransform("/openni/pelvis", "/openni/right_palm", ros::Time(0.0), ros::Duration(3.0));
+    right_arm.lookupTransform( "/openni/pelvis","/openni/right_palm",ros::Time(0.0), right_palm);
     transformToPose(right_palm, right_arm_pose);
-    // chest.lookupTransform( "/human_pelvis","/torso", ros::Time(0.0), torso);
+    // chest.lookupTransform( "/openni/pelvis","/openni/torso", ros::Time(0.0), torso);
     // transformToPose(torso, torso_pose);
 
    // chestTraj.controlChest(torso_pose.pose.orientation);
@@ -356,7 +354,6 @@ int main(int argc, char** argv)
       ROS_INFO("Attmepted: %f, %f, %f for %s",left_arm_pose.pose.position.x,right_arm_pose.pose.position.y,right_arm_pose.pose.position.z, "left arm");
       updatePastPoses(old_larm_pose, old_rarm_pose, old_torso_pose, left_arm_pose, right_arm_pose, torso_pose);
     }*/
-    //atlas_taskspace.getTrajectory(left_arm_pose, larm_planner_group, trajectory_msg);
     //wb_controller.executeTrajectory(trajectory_msg);
 
     ROS_INFO("SENDING COMMAND!!");
